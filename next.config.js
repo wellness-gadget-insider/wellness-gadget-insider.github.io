@@ -1,15 +1,17 @@
+The closing `};` got misplaced. Everything after it is outside the object:
+
+```js
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', 
+  output: 'export',
   trailingSlash: true,
-};
 
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
   images: {
-    unoptimized: true, 
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -21,7 +23,7 @@ const nextConfig = {
   },
 
   webpack: (config) => {
-    config.resolve.fallback = { 
+    config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       path: false,
@@ -30,5 +32,5 @@ const nextConfig = {
   },
 };
 
-// Use modern ES module export since package.json has "type": "module"
 export default nextConfig;
+```
