@@ -15,7 +15,7 @@ export default function SearchBar() {
     const trimmedQuery = query.trim();
     if (trimmedQuery) {
       setIsLoading(true);
-      router.push(`/search/${encodeURIComponent(trimmedQuery)}`);
+      router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
     }
   };
 
