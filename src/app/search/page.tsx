@@ -3,8 +3,9 @@
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+// Import your local data file directly into the client bundle
+import blogData from '@/data/blog-articles.json';
 
-// Core search component that reads browser parameters safely
 function SearchResults() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
@@ -18,22 +19,61 @@ function SearchResults() {
       return;
     }
 
-    async function fetchSearchResults() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setResults(data);
+    setLoading(true);
+    const normalizedQuery = query.toLowerCase().trim();
+
+    // 1. Safely parse all articles out of your JSON structure
+    let allArticles: any[] = [];
+    
+    if (blogData.mainCategories && Array.isArray(blogData.mainCategories)) {
+      blogData.mainCategories.forEach((category: any) => {
+        const articlesInCategory = category.articles || category.data?.articles;
+        if (articlesInCategory && Array.isArray(articlesInCategory)) {
+          allArticles = [...allArticles, ...articlesInCategory];
         }
-      } catch (error) {
-        console.error('Failed to fetch search results:', error);
-      } finally {
-        setLoading(false);
-      }
+      });
+    }
+    
+    if (allArticles.length === 0 && blogData.articles && Array.isArray(blogData.articles)) {
+      allArticles = blogData.articles;
     }
 
-    fetchSearchResults();
+    // 2. Perform the keyword matching directly in the browser
+    const queryKeywords = normalizedQuery.split(/\s+/).filter(Boolean);
+    
+    const filtered = allArticles
+      .map(article => {
+        const title = (article.pageTitle || article.title || '').toLowerCase();
+        const description = (article.description || article.metaDescription || '').toLowerCase();
+        const category = (article.mainCategoryName || '').toLowerCase();
+        
+        let score = 0;
+        
+        // Exact matches get premium scores
+        if (title === normalizedQuery) score += 100;
+        else if (title.includes(normalizedQuery)) score += 50;
+        
+        // Individual keyword matching
+        queryKeywords.forEach(keyword => {
+          if (title.includes(keyword)) score += 10;
+          if (description.includes(keyword)) score += 2;
+          if (category.includes(keyword)) score += 5;
+        });
+
+        return {
+          url: `/blog/${article.slug}`,
+          title: article.pageTitle || article.title,
+          description: article.description || article.metaDescription,
+          breadcrumbs: article.mainCategoryName || '',
+          score
+        };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10); // Grab top 10 matches
+
+    setResults(filtered);
+    setLoading(false);
   }, [query]);
 
   return (
@@ -69,7 +109,6 @@ function SearchResults() {
   );
 }
 
-// Main page component providing the mandatory boundary for static compilation
 export default function SearchPage() {
   return (
     <Suspense fallback={<div className="text-center py-12">Loading Search Layout...</div>}>
