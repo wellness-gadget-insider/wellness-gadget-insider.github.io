@@ -1,15 +1,9 @@
-The closing `};` got misplaced. Everything after it is outside the object:
-
-```js
-// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
   trailingSlash: true,
-
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
-
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -21,7 +15,6 @@ const nextConfig = {
     ],
     minimumCacheTTL: 3600,
   },
-
   webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -33,4 +26,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-```
