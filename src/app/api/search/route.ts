@@ -3,9 +3,22 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
 
+// Explicitly declare static build behavior for compilation safety
+export const dynamic = 'force-static';
+
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q')?.toLowerCase().trim() || '';
+  let query = '';
+
+  // Safe request URL extraction to prevent crashes during 'npm run build'
+  try {
+    if (request && request.url) {
+      const { searchParams } = new URL(request.url);
+      query = searchParams.get('q')?.toLowerCase().trim() || '';
+    }
+  } catch (urlError) {
+    console.log('Search API: Build worker environment detected, utilizing default query fallback.');
+    query = '';
+  }
   
   try {
     // 1. Verify file path
@@ -33,7 +46,7 @@ export async function GET(request: Request) {
     try {
       rawData = JSON.parse(fileContents);
       console.log('Search API: JSON parsed successfully');
-    } catch (parseError) {
+    } catch (parseError: any) {
       console.error('Search API: JSON parse error', parseError);
       return NextResponse.json(
         { error: "Invalid JSON format", message: parseError.message },

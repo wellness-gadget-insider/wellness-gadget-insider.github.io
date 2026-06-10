@@ -14,8 +14,8 @@ const font = Poppins({
   display: 'swap',
 })
 
-// Critical: Force dynamic rendering
-export const dynamic = 'force-dynamic';
+// Critical: Force static rendering
+export const dynamic = 'force-static';
 
 export const metadata: Metadata = {
   title: {

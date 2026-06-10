@@ -2,11 +2,10 @@
 import { MetadataRoute } from 'next';
 import blogData from '@/data/blog-articles.json';
 
-const BASE_URL = 'https://wellness-gadget-insider.vercel.app';
+const BASE_URL = 'https://wellness-gadget-insider.github.io';
 
-// Force immediate invalidation
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Force static export compilation for GitHub Pages
+export const dynamic = 'force-static';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const timestamp = new Date().toISOString();

@@ -8,6 +8,8 @@ import type { Metadata, ResolvingMetadata } from "next";
 import { getKeywords } from "@/lib/seo-utils";
 import Link from "next/link";
 
+export const dynamic = 'force-static';
+
 // Type assertion for blogData
 const typedBlogData = blogData as {
   mainCategories: {
@@ -113,12 +115,14 @@ export async function generateMetadata(
   };
 }
 
+// Next.js 15 Component Fix: Await asynchronous parameters
 export default async function BlogPostPage({ 
   params 
 }: { 
-  params: { slug: string } 
+  params: Promise<{ slug: string }> 
 }) {
-  const slug = params.slug.trim().toLowerCase();
+  const resolvedParams = await params;
+  const slug = resolvedParams.slug.trim().toLowerCase();
   
   const article = typedBlogData.articles.find(
     (item) => item.slug.trim().toLowerCase() === slug
@@ -165,16 +169,12 @@ export default async function BlogPostPage({
       processedHtml = processedHtml.replace(
         /<h2(\s*[^>]*)>/gi, 
         (match, attrs) => {
-          // Remove any existing font-size and color styles
           let cleanedAttrs = attrs
             .replace(/(style\s*=\s*["'][^"']*font-size[^"']*["'])/gi, '')
             .replace(/(style\s*=\s*["'][^"']*color[^"']*["'])/gi, '')
             .replace(/(class\s*=\s*["'][^"']*text-\S+[^"']*["'])/gi, '');
           
-          // Add our fixed styling with !important and new orange
           const styleAttr = 'style="font-size: 1.5rem !important; font-weight: bold !important; color: #E59419 !important; margin: 1.5rem 0 1rem !important;"';
-          
-          // Add class for additional CSS protection
           const classAttr = 'class="blog-heading"';
           
           return `<h2${cleanedAttrs} ${classAttr} ${styleAttr}>`;
@@ -183,34 +183,24 @@ export default async function BlogPostPage({
       
       // 3. Comprehensive spacing normalization
       processedHtml = processedHtml
-        // Remove empty elements (including non-breaking spaces)
         .replace(/<p>(\s|&nbsp;)*<\/p>/gi, '')
         .replace(/<div[^>]*>(\s|&nbsp;)*<\/div>/gi, '')
         .replace(/<section[^>]*>(\s|&nbsp;)*<\/section>/gi, '')
         .replace(/<h[1-6]>(\s|&nbsp;)*<\/h[1-6]>/gi, '')
-        // Remove all spacing classes
         .replace(/\b(mt|mb|pt|pb|ml|mr|pl|pr|mx|my|px|py|space|gap)-\d+\b/gi, '')
-        // Remove multiple line breaks and excessive whitespace
         .replace(/\n\s*\n/g, '\n')
         .replace(/>\s{2,}</g, '><')
-        // Normalize spacing between paragraphs
         .replace(/<\/p>\s*<p>/gi, '</p><p>')
-        // Remove <br> tags near block boundaries
         .replace(/(<br\s*\/?>\s*)(<\/[a-zA-Z]+>)/gi, '$2')
         .replace(/(<[a-zA-Z]+[^>]*>)(\s*<br\s*\/?>\s*)/gi, '$1')
-        // Remove empty divs and sections
         .replace(/<div[^>]*>\s*<\/div>/gi, '')
         .replace(/<section[^>]*>\s*<\/section>/gi, '')
-        // Remove extra spacing around headings
         .replace(/>\s+<h[1-6]/g, '><h$1')
         .replace(/<\/h[1-6]>\s+</g, '</h$1><')
-        // Remove extra spacing around paragraphs
         .replace(/>\s+<p/g, '><p')
         .replace(/<\/p>\s+</g, '</p><')
-        // Remove extra spacing around divs
         .replace(/>\s+<div/g, '><div')
         .replace(/<\/div>\s+</g, '</div><')
-        // Remove extra spacing around lists
         .replace(/>\s+<(ul|ol)/g, '><$1')
         .replace(/<\/(ul|ol)>\s+</g, '</$1><');
 
@@ -347,7 +337,6 @@ export default async function BlogPostPage({
     };
   };
 
-  // NEW: Generate Review Schema
   const generateReviewSchema = () => {
     if (!article.amazon_link) return null;
 
@@ -387,7 +376,7 @@ export default async function BlogPostPage({
 
   const faqSchema = generateFAQSchema();
   const productSchema = generateProductSchema();
-  const reviewSchema = generateReviewSchema(); // NEW
+  const reviewSchema = generateReviewSchema();
   const authorSchema = generateAuthorSchema();
 
   return (
@@ -450,7 +439,6 @@ export default async function BlogPostPage({
         />
       )}
 
-      {/* NEW: Review Schema */}
       {reviewSchema && (
         <Script
           id="review-schema"
