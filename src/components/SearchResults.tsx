@@ -2,57 +2,102 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+// Import your local articles database directly into the bundle
+import blogData from '@/data/blog-articles.json';
 
 export default function SearchResults({ query }: { query: string }) {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchResults = async () => {
+    const performClientSearch = () => {
       try {
         setLoading(true);
-        setError(null);
         
-        if (!query.trim()) {
+        // Decode the URL encoded query (e.g., "neck%20pain" -> "neck pain")
+        const decodedQuery = decodeURIComponent(query || '').toLowerCase().trim();
+        
+        if (!decodedQuery) {
           setResults([]);
-          setLoading(false);
           return;
         }
 
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        // 1. Safely extract all articles from your JSON data structure
+        let allArticles: any[] = [];
         
-        if (!res.ok) {
-          throw new Error(await res.text());
+        if (blogData.mainCategories && Array.isArray(blogData.mainCategories)) {
+          blogData.mainCategories.forEach((category: any) => {
+            const articlesInCategory = category.articles || category.data?.articles;
+            if (articlesInCategory && Array.isArray(articlesInCategory)) {
+              allArticles = [...allArticles, ...articlesInCategory];
+            }
+          });
         }
         
-        const data = await res.json();
-        setResults(data);
+        if (allArticles.length === 0 && blogData.articles && Array.isArray(blogData.articles)) {
+          allArticles = blogData.articles;
+        }
+
+        // 2. Client-side scoring algorithm
+        const queryKeywords = decodedQuery.split(/\s+/).filter(Boolean);
+        
+        const filtered = allArticles
+          .map((article) => {
+            const title = (article.pageTitle || article.title || '').toLowerCase();
+            const description = (article.description || article.metaDescription || '').toLowerCase();
+            const category = (article.mainCategoryName || article.mainCategory || '').toLowerCase();
+            
+            let score = 0;
+            
+            // Phrase matches get top premium scores
+            if (title === decodedQuery) {
+              score = 100;
+            } else if (title.includes(decodedQuery)) {
+              score = 60;
+            } else {
+              // Word-by-word relevance scoring
+              queryKeywords.forEach((keyword) => {
+                if (title.includes(keyword)) score += 15;
+                if (description.includes(keyword)) score += 5;
+                if (category.includes(keyword)) score += 8;
+              });
+            }
+
+            // Bound maximum possible score
+            score = Math.min(100, score);
+
+            return {
+              url: `/blog/${article.slug}`,
+              title: article.pageTitle || article.title,
+              description: article.description || article.metaDescription,
+              breadcrumbs: article.mainCategoryName || article.mainCategory || '',
+              score: Math.round(score),
+            };
+          })
+          .filter((item) => item.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 10); // Limit to top 10 relevant matches
+
+        setResults(filtered);
       } catch (err) {
-        console.error('Search error:', err);
-        setError('Failed to load search results. Please try again.');
+        console.error('Client search compilation error:', err);
         setResults([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchResults();
+    performClientSearch();
   }, [query]);
+
+  // Decode query string safely for UI presentation
+  const displayQuery = decodeURIComponent(query || '');
 
   if (loading) {
     return (
       <div className="p-8 text-center">
         <div className="inline-block h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-2">Searching for "{query}"...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 text-center text-red-500">
-        {error}
+        <p className="mt-2">Searching for "{displayQuery}"...</p>
       </div>
     );
   }
@@ -60,7 +105,7 @@ export default function SearchResults({ query }: { query: string }) {
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">
-        Search Results for: <span className="text-primary">"{query}"</span>
+        Search Results for: <span className="text-primary">"{displayQuery}"</span>
       </h1>
 
       {results.length > 0 ? (
@@ -109,7 +154,7 @@ export default function SearchResults({ query }: { query: string }) {
         </div>
       ) : (
         <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
-          <p>No results found for "{query}". Try different keywords.</p>
+          <p>No results found for "{displayQuery}". Try different keywords.</p>
           <div className="mt-4">
             <Link href="/blog" className="text-blue-600 hover:underline">
               Browse all articles
